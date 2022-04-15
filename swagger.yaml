@@ -14,7 +14,7 @@ paths:
       operationId: createExchangeQuote
       requestBody:
         content:
-          '*/*':
+          application/json:
             schema:
               $ref: '#/components/schemas/QuoteCreateRequest'
       responses:
@@ -29,12 +29,18 @@ paths:
       summary: Refresh quote
       description: Refresh quote
       operationId: refreshExchangeQuote
+      parameters:
+        - name: quoteId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
       requestBody:
         content:
-          '*/*':
+          application/json:
             schema:
-              type: string
-              format: uuid
+              $ref: '#/components/schemas/QuoteRefreshRequest'
       responses:
         '201':
           description: Quote recreated successfully
@@ -71,17 +77,17 @@ paths:
               schema:
                 $ref: '#/components/schemas/ExchangeCreateResponse'
   /exchange-transactions/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
     get:
       summary: Get exchange
       description: Get exchange
       operationId: querySingle
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
       responses:
         '200':
           description: Exchange resource returned
@@ -95,10 +101,9 @@ paths:
       operationId: update
       requestBody:
         content:
-          '*/*':
+          application/json:
             schema:
-              type: string
-              format: uuid
+              $ref: '#/components/schemas/ExchangeUpdateRequest'
       responses:
         '200':
           description: Exchange updated successfully
@@ -106,21 +111,20 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ExchangeUpdateResponse'
+
 components:
   schemas:
-    InformationSourcingMethod:
-      type: string
-      description: configures where the information for pricing will be sourced
-      enum:
-        - explicit
-        - implicit
     PricingCalculationWorkflowConfiguration:
       type: object
       properties:
         dryRun:
           type: boolean
         sourcingMethod:
-          $ref: '#/components/schemas/InformationSourcingMethod'
+          type: string
+          description: configures where the information for pricing will be sourced
+          enum:
+            - explicit
+            - implicit
         enabled:
           type: boolean
           description: determines weather pricing will be applied or not
@@ -136,9 +140,15 @@ components:
       properties:
         type:
           type: string
+          enum:
+            - fixed
+            - ratio
       description: pricing data input
       discriminator:
         propertyName: type
+        mapping:
+          fixed: '#/components/schemas/PricingCalculationWorkflowFixedDataInput'
+          ratio: '#/components/schemas/PricingCalculationWorkflowRatioDataInpu'
     PricingCalculationWorkflowFixedDataInput:
       type: object
       description: pricing data ratio based input
@@ -214,9 +224,32 @@ components:
       type: object
       properties:
         quote:
+          $ref: '#/components/schemas/QuoteCreateResource'
+        pricing:
+          oneOf:
+            - $ref: '#/components/schemas/PricingCalculationWorkflowFixedDataInput'
+            - $ref: '#/components/schemas/PricingCalculationWorkflowRatioDataInpu'
+          discriminator:
+            propertyName: type
+            mapping:
+              fixed: '#/components/schemas/PricingCalculationWorkflowFixedDataInput'
+              ratio: '#/components/schemas/PricingCalculationWorkflowRatioDataInpu'
+    QuoteCreateResponseDataContainer:
+      required:
+        - quote
+      type: object
+      properties:
+        quote:
           $ref: '#/components/schemas/QuoteResource'
         pricing:
-          $ref: '#/components/schemas/PricingCalculationWorkflowDataInput'
+          oneOf:
+            - $ref: '#/components/schemas/PricingCalculationWorkflowFixedDataInput'
+            - $ref: '#/components/schemas/PricingCalculationWorkflowRatioDataInpu'
+          discriminator:
+            propertyName: type
+            mapping:
+              fixed: '#/components/schemas/PricingCalculationWorkflowFixedDataInput'
+              ratio: '#/components/schemas/PricingCalculationWorkflowRatioDataInpu'
     QuoteCreateMetadataContainer:
       type: object
     QuoteCreateResponse:
@@ -225,7 +258,7 @@ components:
         workflow:
           $ref: '#/components/schemas/QuoteCreateWorkflowContainer'
         data:
-          $ref: '#/components/schemas/QuoteCreateDataContainer'
+          $ref: '#/components/schemas/QuoteCreateResponseDataContainer'
         connect:
           $ref: '#/components/schemas/QuoteCreateConnect'
         metadata:
@@ -297,6 +330,48 @@ components:
           format: date
       description: quote data model
       readOnly: true
+    QuoteCreateResource:
+      required:
+        - clientId
+        - fixedSide
+        - sellCurrency
+        - sellAccountId
+        - buyCurrency
+        - buyAccountId
+        - amount
+      type: object
+      properties:
+        clientId:
+          type: string
+          description: ID of client
+          format: uuid
+        fixedSide:
+          $ref: '#/components/schemas/ExchangeFixedSideType'
+        buyAccountId:
+          type: string
+          description: ID of buy account
+          format: uuid
+        buyCurrency:
+          maxLength: 3
+          minLength: 3
+          type: string
+          description: ISO 4217 currency code
+          example: GBP
+        amount:
+          type: number
+          description: Amount of exchange
+        sellAccountId:
+          type: string
+          description: ID of sell account
+          format: uuid
+        sellCurrency:
+          maxLength: 3
+          minLength: 3
+          type: string
+          description: ISO 4217 currency code
+          example: EUR
+      description: exchange data model
+      readOnly: false
     QuoteCreateRequest:
       type: object
       properties:
@@ -330,7 +405,7 @@ components:
       type: object
       properties:
         quote:
-          $ref: '#/components/schemas/QuoteResource'
+          $ref: '#/components/schemas/QuoteCreateResource'
         pricing:
           $ref: '#/components/schemas/PricingCalculationWorkflowDataInput'
     QuoteRefreshMetadataContainer:
