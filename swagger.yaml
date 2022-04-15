@@ -213,6 +213,7 @@ components:
           description: service provider selection type
           enum:
             - explicit
+            - implicit
         serviceProvider:
           type: string
           description: 'account is connected to this service provider '
