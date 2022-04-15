@@ -1,0 +1,762 @@
+openapi: 3.0.1
+info:
+  title: Exchanges
+  version: '1'
+servers:
+  - url: https://api.integrated.finance/v1/{instanceId}
+    description: Production
+    variables: {}
+paths:
+  /exchange-quotes:
+    post:
+      summary: Create quote
+      description: Create quote
+      operationId: createExchangeQuote
+      requestBody:
+        content:
+          '*/*':
+            schema:
+              $ref: '#/components/schemas/QuoteCreateRequest'
+      responses:
+        '201':
+          description: Quote created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuoteCreateResponse'
+  /exchange-quotes/{quoteId}:
+    post:
+      summary: Refresh quote
+      description: Refresh quote
+      operationId: refreshExchangeQuote
+      requestBody:
+        content:
+          '*/*':
+            schema:
+              type: string
+              format: uuid
+      responses:
+        '201':
+          description: Quote recreated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuoteRefreshResponse'
+  /exchange-transactions:
+    get:
+      summary: List exchanges
+      description: List exchanges
+      operationId: query
+      responses:
+        '200':
+          description: Exchange list returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExchangeListResponse'
+    post:
+      summary: Create exchange
+      description: Create exchange
+      operationId: createExchangeTransaction
+      requestBody:
+        content:
+          '*/*':
+            schema:
+              $ref: '#/components/schemas/ExchangeCreateRequest'
+      responses:
+        '201':
+          description: Exchange created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExchangeCreateResponse'
+  /exchange-transactions/{id}:
+    get:
+      summary: Get exchange
+      description: Get exchange
+      operationId: querySingle
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Exchange resource returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExchangeGetResponse'
+    patch:
+      summary: Update exchange
+      description: Update exchange
+      operationId: update
+      requestBody:
+        content:
+          '*/*':
+            schema:
+              type: string
+              format: uuid
+      responses:
+        '200':
+          description: Exchange updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExchangeUpdateResponse'
+components:
+  schemas:
+    InformationSourcingMethod:
+      type: string
+      description: configures where the information for pricing will be sourced
+      enum:
+        - explicit
+        - implicit
+    PricingCalculationWorkflowConfiguration:
+      type: object
+      properties:
+        dryRun:
+          type: boolean
+        sourcingMethod:
+          $ref: '#/components/schemas/InformationSourcingMethod'
+        enabled:
+          type: boolean
+          description: determines weather pricing will be applied or not
+        chargingType:
+          $ref: '#/components/schemas/PricingChargingType'
+        chargingMethod:
+          $ref: '#/components/schemas/PricingChargingMethod'
+      description: pricing workflow contex
+    PricingCalculationWorkflowDataInput:
+      required:
+        - type
+      type: object
+      properties:
+        type:
+          type: string
+      description: pricing data input
+      discriminator:
+        propertyName: type
+    PricingCalculationWorkflowFixedDataInput:
+      type: object
+      description: pricing data ratio based input
+      allOf:
+        - $ref: '#/components/schemas/PricingCalculationWorkflowDataInput'
+        - type: object
+          properties:
+            enabled:
+              $ref: '#/components/schemas/PricingDefinitionType'
+            amount:
+              type: number
+              description: fixed pricing amount
+            currency:
+              type: string
+              description: fixed pricing amount currency
+    PricingCalculationWorkflowRatioDataInpu:
+      type: object
+      description: pricing data ratio based input
+      allOf:
+        - $ref: '#/components/schemas/PricingCalculationWorkflowDataInput'
+        - type: object
+          properties:
+            enabled:
+              $ref: '#/components/schemas/PricingDefinitionType'
+            ratio:
+              type: number
+              description: pricing ratio
+            boundaryCurrency:
+              type: string
+              description: minimum & maximum boundary amounts currency
+            minimumAmount:
+              type: number
+              description: minimum amount bound for the pricing
+            maximumAmount:
+              type: number
+              description: maximum amount bound for the pricing
+    PricingChargingMethod:
+      type: string
+      description: configures where this action will be charged from
+      enum:
+        - on-source
+    PricingChargingType:
+      type: string
+      description: configures how this action will be charged
+      enum:
+        - fee
+        - markup
+    PricingDefinitionType:
+      type: string
+      description: determines weather pricing will be applied or not
+      enum:
+        - fixed
+        - ratio
+    QuoteCreateConnect:
+      required:
+        - serviceProvider
+        - type
+      type: object
+      properties:
+        type:
+          type: string
+          description: service provider selection type
+          enum:
+            - explicit
+        serviceProvider:
+          type: string
+          description: 'account is connected to this service provider '
+          enum:
+            - railsbank
+    QuoteCreateDataContainer:
+      required:
+        - quote
+      type: object
+      properties:
+        quote:
+          $ref: '#/components/schemas/QuoteResource'
+        pricing:
+          $ref: '#/components/schemas/PricingCalculationWorkflowDataInput'
+    QuoteCreateMetadataContainer:
+      type: object
+    QuoteCreateResponse:
+      type: object
+      properties:
+        workflow:
+          $ref: '#/components/schemas/QuoteCreateWorkflowContainer'
+        data:
+          $ref: '#/components/schemas/QuoteCreateDataContainer'
+        connect:
+          $ref: '#/components/schemas/QuoteCreateConnect'
+        metadata:
+          $ref: '#/components/schemas/QuoteCreateMetadataContainer'
+    QuoteCreateWorkflowContainer:
+      required:
+        - code
+      type: object
+      properties:
+        code:
+          type: string
+          description: workflow code
+          enum:
+            - direct
+        pricing:
+          $ref: '#/components/schemas/PricingCalculationWorkflowConfiguration'
+    QuoteResource:
+      required:
+        - buyAmount
+        - buyCurrency
+        - cutOffDateTime
+        - exchangeDate
+        - expiryDateTime
+        - quoteId
+        - rate
+        - sellAmount
+        - sellCurrency
+        - settlementDate
+      type: object
+      properties:
+        quoteId:
+          type: string
+          description: ID of quote
+          format: uuid
+        rate:
+          type: number
+          description: Rate
+        buyCurrency:
+          maxLength: 3
+          minLength: 3
+          type: string
+          description: ISO 4217 currency code
+        buyAmount:
+          type: number
+          description: Buy amount of exchange
+        sellCurrency:
+          maxLength: 3
+          minLength: 3
+          type: string
+          description: ISO 4217 currency code
+        sellAmount:
+          type: number
+          description: Sell amount of exchange
+        exchangeDate:
+          type: string
+          description: Calculated exchange date
+          format: date
+        expiryDateTime:
+          type: string
+          description: Calculated exchange expiry date time
+          format: date-time
+        cutOffDateTime:
+          type: string
+          description: Exchange cut-off date time
+          format: date-time
+        settlementDate:
+          type: string
+          description: Calculated exchange settlement date
+          format: date
+      description: quote data model
+      readOnly: true
+    QuoteCreateRequest:
+      type: object
+      properties:
+        workflow:
+          $ref: '#/components/schemas/QuoteCreateWorkflowContainer'
+        data:
+          $ref: '#/components/schemas/QuoteCreateDataContainer'
+        connect:
+          $ref: '#/components/schemas/QuoteCreateConnect'
+        metadata:
+          $ref: '#/components/schemas/QuoteCreateMetadataContainer'
+    QuoteRefreshConnect:
+      required:
+        - serviceProvider
+        - type
+      type: object
+      properties:
+        type:
+          type: string
+          description: service provider selection type
+          enum:
+            - explicit
+        serviceProvider:
+          type: string
+          description: 'account is connected to this service provider '
+          enum:
+            - railsbank
+    QuoteRefreshDataContainer:
+      required:
+        - quote
+      type: object
+      properties:
+        quote:
+          $ref: '#/components/schemas/QuoteResource'
+        pricing:
+          $ref: '#/components/schemas/PricingCalculationWorkflowDataInput'
+    QuoteRefreshMetadataContainer:
+      type: object
+    QuoteRefreshResponse:
+      type: object
+      properties:
+        workflow:
+          $ref: '#/components/schemas/QuoteRefreshWorkflowContainer'
+        data:
+          $ref: '#/components/schemas/QuoteRefreshDataContainer'
+        connect:
+          $ref: '#/components/schemas/QuoteRefreshConnect'
+        metadata:
+          $ref: '#/components/schemas/QuoteRefreshMetadataContainer'
+    QuoteRefreshWorkflowContainer:
+      required:
+        - code
+      type: object
+      properties:
+        code:
+          type: string
+          description: workflow code
+          enum:
+            - direct
+        pricing:
+          $ref: '#/components/schemas/PricingCalculationWorkflowConfiguration'
+    QuoteRefreshRequest:
+      type: object
+      properties:
+        workflow:
+          $ref: '#/components/schemas/QuoteRefreshWorkflowContainer'
+        data:
+          $ref: '#/components/schemas/QuoteRefreshDataContainer'
+        connect:
+          $ref: '#/components/schemas/QuoteRefreshConnect'
+        metadata:
+          $ref: '#/components/schemas/QuoteRefreshMetadataContainer'
+    ExchangeCreateDataContainer:
+      required:
+        - exchange
+      type: object
+      properties:
+        exchange:
+          $ref: '#/components/schemas/ExchangeResource'
+    ExchangeCreateMetadataContainer:
+      type: object
+    ExchangeCreateResponse:
+      type: object
+      properties:
+        workflow:
+          $ref: '#/components/schemas/ExchangeCreateWorkflowContainer'
+        data:
+          $ref: '#/components/schemas/ExchangeCreateDataContainer'
+        connect:
+          $ref: '#/components/schemas/QuoteCreateConnect'
+        metadata:
+          $ref: '#/components/schemas/ExchangeCreateMetadataContainer'
+    ExchangeCreateWorkflowContainer:
+      required:
+        - code
+      type: object
+      properties:
+        code:
+          type: string
+          description: workflow code
+          enum:
+            - client.direct.spot
+    ExchangeFixedSideType:
+      type: string
+      description: which side is fixed as amount
+      enum:
+        - buy
+        - sell
+    ExchangeResource:
+      required:
+        - buyAccountId
+        - buyAmount
+        - buyCurrency
+        - clientId
+        - cutOffDateTime
+        - exchangeDate
+        - fixedSide
+        - originalExchangeDate
+        - quoteId
+        - rate
+        - rollCount
+        - sellAccountId
+        - sellAmount
+        - sellCurrency
+        - serviceProviderBuyAmount
+        - serviceProviderRate
+        - serviceProviderSellAmount
+        - settlementDate
+        - status
+        - transactionNumber
+      type: object
+      properties:
+        id:
+          type: string
+          description: ID of exchange
+          format: uuid
+        clientId:
+          type: string
+          description: ID of client
+          format: uuid
+        quoteId:
+          type: string
+          description: ID of quote
+          format: uuid
+        transactionNumber:
+          type: string
+          description: Transaction number of exchange
+        fixedSide:
+          $ref: '#/components/schemas/ExchangeFixedSideType'
+        rate:
+          type: number
+          description: Rate
+        serviceProviderRate:
+          type: number
+          description: Service provider rate
+        buyAccountId:
+          type: string
+          description: ID of buy account
+          format: uuid
+        buyCurrency:
+          maxLength: 3
+          minLength: 3
+          type: string
+          description: ISO 4217 currency code
+        buyAmount:
+          type: number
+          description: Buy amount of exchange
+        serviceProviderBuyAmount:
+          type: number
+          description: Buy amount of service provider
+        sellAccountId:
+          type: string
+          description: ID of sell account
+          format: uuid
+        sellCurrency:
+          maxLength: 3
+          minLength: 3
+          type: string
+          description: ISO 4217 currency code
+        sellAmount:
+          type: number
+          description: Sell amount of exchange
+        serviceProviderSellAmount:
+          type: number
+          description: Sell amount of service provider
+        rollCount:
+          type: integer
+          description: Roll count of exchange
+          format: int32
+        originalExchangeDate:
+          type: string
+          description: Original exchange date
+          format: date
+        exchangeDate:
+          type: string
+          description: Calculated exchange date
+          format: date
+        cutOffDateTime:
+          type: string
+          description: Exchange cut-off date time
+          format: date-time
+        settlementDate:
+          type: string
+          description: Calculated exchange settlement date
+          format: date
+        status:
+          $ref: '#/components/schemas/ExchangeTransactionStatus'
+        cancellationFee:
+          type: number
+          description: Cancellation fee
+          nullable: true
+      description: exchange data model
+      readOnly: true
+    ExchangeTransactionStatus:
+      type: string
+      description: Status of Exchange
+      enum:
+        - pending
+        - on-hold
+        - completed
+        - cancelled
+        - failed
+    ExchangeCreateRequest:
+      type: object
+      properties:
+        workflow:
+          $ref: '#/components/schemas/ExchangeCreateWorkflowContainer'
+        data:
+          $ref: '#/components/schemas/ExchangeCreateDataContainer'
+        connect:
+          $ref: '#/components/schemas/QuoteCreateConnect'
+        metadata:
+          $ref: '#/components/schemas/ExchangeCreateMetadataContainer'
+    Direction:
+      type: string
+      enum:
+        - ASC
+        - DESC
+    ExchangeListConnectContainer:
+      type: object
+    ExchangeListDataContainer:
+      type: object
+      properties:
+        exchange:
+          $ref: '#/components/schemas/ExchangeResourceQueryInput'
+        exchanges:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExchangeResource'
+    ExchangeListMetadataContainer:
+      type: object
+      properties:
+        include:
+          uniqueItems: true
+          type: array
+          items:
+            type: string
+        expand:
+          uniqueItems: true
+          type: array
+          items:
+            type: string
+        page:
+          $ref: '#/components/schemas/PageMetadata'
+      description: metadata container
+    ExchangeListResponse:
+      type: object
+      properties:
+        workflow:
+          $ref: '#/components/schemas/ExchangeListWorkflowContainer'
+        data:
+          $ref: '#/components/schemas/ExchangeListDataContainer'
+        connect:
+          $ref: '#/components/schemas/ExchangeListConnectContainer'
+        metadata:
+          $ref: '#/components/schemas/ExchangeListMetadataContainer'
+    ExchangeListWorkflowContainer:
+      type: object
+      description: workflow container
+    ExchangeResourceQueryInput:
+      type: object
+      properties:
+        clientId:
+          type: array
+          items:
+            type: string
+            format: uuid
+        transactionNumber:
+          type: array
+          items:
+            type: string
+        sellCurrency:
+          type: array
+          items:
+            type: string
+        buyCurrency:
+          type: array
+          items:
+            type: string
+        sellAmountFrom:
+          type: number
+        sellAmountTo:
+          type: number
+        buyAmountFrom:
+          type: number
+        buyAmountTo:
+          type: number
+    NullHandling:
+      type: string
+      enum:
+        - NATIVE
+        - NULLS_FIRST
+        - NULLS_LAST
+    Order:
+      type: object
+      properties:
+        direction:
+          $ref: '#/components/schemas/Direction'
+        property:
+          type: string
+        ignoreCase:
+          type: boolean
+        nullHandling:
+          $ref: '#/components/schemas/NullHandling'
+        ascending:
+          type: boolean
+        descending:
+          type: boolean
+    PageMetadata:
+      type: object
+      properties:
+        size:
+          minimum: 0
+          type: integer
+          description: number of elements in this page
+          format: int32
+        number:
+          minimum: 0
+          type: integer
+          description: index of page starting from 0
+          format: int32
+        totalElements:
+          minimum: 0
+          type: integer
+          description: total number of elements in all of the pages
+          format: int64
+          readOnly: true
+        totalPages:
+          minimum: 0
+          type: integer
+          description: number of total pages
+          format: int32
+          readOnly: true
+        sort:
+          $ref: '#/components/schemas/Sort'
+        paged:
+          type: boolean
+        unpaged:
+          type: boolean
+      description: pagination metadata
+    Sort:
+      type: object
+      properties:
+        orders:
+          type: array
+          items:
+            $ref: '#/components/schemas/Order'
+        sorted:
+          type: boolean
+        unsorted:
+          type: boolean
+        empty:
+          type: boolean
+    ExchangeGetConnect:
+      type: object
+    ExchangeGetDataContainer:
+      type: object
+      properties:
+        exchange:
+          $ref: '#/components/schemas/ExchangeResource'
+    ExchangeGetMetadataContainer:
+      type: object
+      properties:
+        include:
+          uniqueItems: true
+          type: array
+          items:
+            type: string
+        expand:
+          uniqueItems: true
+          type: array
+          items:
+            type: string
+    ExchangeGetResponse:
+      type: object
+      properties:
+        workflow:
+          $ref: '#/components/schemas/ExchangeGetWorkflowContainer'
+        data:
+          $ref: '#/components/schemas/ExchangeGetDataContainer'
+        connect:
+          $ref: '#/components/schemas/ExchangeGetConnect'
+        metadata:
+          $ref: '#/components/schemas/ExchangeGetMetadataContainer'
+    ExchangeGetWorkflowContainer:
+      type: object
+    ExchangeUpdateConnect:
+      required:
+        - serviceProvider
+        - type
+      type: object
+      properties:
+        type:
+          type: string
+          description: service provider selection type
+          enum:
+            - explicit
+        serviceProvider:
+          type: string
+          description: 'account is connected to this service provider '
+          enum:
+            - railsbank
+    ExchangeUpdateMetadataContainer:
+      type: object
+    ExchangeUpdateRequestDataContainer:
+      required:
+        - exchange
+      type: object
+      properties:
+        exchange:
+          $ref: '#/components/schemas/ExchangeResource'
+    ExchangeUpdateResponse:
+      type: object
+      properties:
+        workflow:
+          $ref: '#/components/schemas/ExchangeUpdateWorkflowContainer'
+        data:
+          $ref: '#/components/schemas/ExchangeUpdateRequestDataContainer'
+        connect:
+          $ref: '#/components/schemas/ExchangeUpdateConnect'
+        metadata:
+          $ref: '#/components/schemas/ExchangeUpdateMetadataContainer'
+    ExchangeUpdateWorkflowContainer:
+      required:
+        - code
+      type: object
+      properties:
+        code:
+          type: string
+          description: workflow code
+          enum:
+            - client.direct.spot
+    ExchangeUpdateRequest:
+      type: object
+      properties:
+        workflow:
+          $ref: '#/components/schemas/ExchangeUpdateWorkflowContainer'
+        data:
+          $ref: '#/components/schemas/ExchangeUpdateRequestDataContainer'
+        connect:
+          $ref: '#/components/schemas/ExchangeUpdateConnect'
+        metadata:
+          $ref: '#/components/schemas/ExchangeUpdateMetadataContainer'
